@@ -1,0 +1,2748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TOKYO 2020 — An Interactive Olympic Data Story</title>
+<meta name="description" content="A D3.js interactive data visualization story built on Tokyo 2020 Olympic data." />
+
+<!-- ==========================================================
+     FONTS (optional, falls back to system fonts offline)
+     ========================================================== -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+<!-- ==========================================================
+     STYLES
+     ========================================================== -->
+<style>
+/* ============================================================
+   1. DESIGN TOKENS
+   ============================================================ */
+:root{
+  --navy:      #0a1628;
+  --navy-2:    #12263f;
+  --ink:       #0f1e33;
+  --muted:     #64748b;
+  --muted-2:   #94a3b8;
+  --line:      #e3e9f1;
+  --bg:        #f7f9fc;
+  --card:      #ffffff;
+
+  --blue:      #0081C8;
+  --gold:      #D4AF37;
+  --silver:    #A8B0BA;
+  --bronze:    #C57B45;
+  --red:       #EE334E;
+  --green:     #00A651;
+  --yellow:    #FCB131;
+
+  --radius:    16px;
+  --radius-sm: 10px;
+  --shadow:    0 4px 20px rgba(10,22,40,.06);
+  --shadow-lg: 0 18px 48px rgba(10,22,40,.12);
+  --nav-h:     58px;
+}
+
+/* ============================================================
+   2. RESET & BASE
+   ============================================================ */
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-size:16px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+h1,h2,h3,h4{margin:0;line-height:1.15;letter-spacing:-.025em;font-weight:800;}
+p{margin:0;}
+button,select,input{font-family:inherit;font-size:inherit;color:inherit;}
+svg{display:block;}
+a{color:inherit;text-decoration:none;}
+
+/* ============================================================
+   3. NAVIGATION
+   ============================================================ */
+.nav{
+  position:fixed;top:0;left:0;right:0;height:var(--nav-h);z-index:800;
+  display:flex;align-items:center;gap:16px;
+  padding:0 20px;
+  background:transparent;
+  border-bottom:1px solid transparent;
+  transition:background .3s, border-color .3s, backdrop-filter .3s;
+}
+.nav.scrolled{
+  background:rgba(255,255,255,.9);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  border-bottom-color:var(--line);
+}
+.brand{
+  display:flex;align-items:center;gap:9px;
+  font-weight:900;font-size:13.5px;letter-spacing:.12em;
+  color:#fff;white-space:nowrap;
+  transition:color .3s;
+}
+.nav.scrolled .brand{color:var(--navy);}
+.brand .dot-ring{
+  width:13px;height:13px;border-radius:50%;
+  border:3px solid var(--blue);display:block;
+}
+.brand em{font-style:normal;color:var(--blue);}
+
+.nav-links{
+  display:flex;gap:2px;align-items:center;flex:1;
+  overflow-x:auto;scrollbar-width:none;
+}
+.nav-links::-webkit-scrollbar{display:none;}
+.nav-links a{
+  padding:7px 12px;border-radius:8px;
+  font-size:12.5px;font-weight:600;letter-spacing:.02em;
+  color:rgba(255,255,255,.65);white-space:nowrap;
+  transition:color .2s, background .2s;
+}
+.nav-links a:hover{color:#fff;}
+.nav-links a.active{background:rgba(255,255,255,.16);color:#fff;}
+.nav.scrolled .nav-links a{color:var(--muted);}
+.nav.scrolled .nav-links a:hover{color:var(--navy);background:#eef3f9;}
+.nav.scrolled .nav-links a.active{background:var(--navy);color:#fff;}
+
+.btn{
+  padding:7px 15px;border-radius:9px;border:1px solid var(--line);
+  background:#fff;font-size:12.5px;font-weight:700;cursor:pointer;
+  transition:all .18s;white-space:nowrap;color:var(--navy);
+}
+.btn:hover{background:var(--navy);color:#fff;border-color:var(--navy);}
+.btn.ghost{
+  background:transparent;color:rgba(255,255,255,.8);
+  border-color:rgba(255,255,255,.25);
+}
+.nav.scrolled .btn.ghost{
+  background:#fff;color:var(--navy);border-color:var(--line);
+}
+.nav.scrolled .btn.ghost:hover{background:var(--navy);color:#fff;border-color:var(--navy);}
+
+/* ============================================================
+   4. HERO — D3 SVG OLYMPIC RING ANIMATION
+   ============================================================ */
+.hero{
+  position:relative;
+  min-height:100vh;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  text-align:center;
+  padding:calc(var(--nav-h) + 30px) 22px 60px;
+  background:
+    radial-gradient(1000px 620px at 50% 40%, #14294a 0%, #0a1628 62%, #060e1c 100%);
+  overflow:hidden;
+  cursor:pointer;
+}
+.hero::after{
+  content:"";
+  position:absolute;inset:auto 0 0 0;height:120px;
+  background:linear-gradient(to bottom, transparent, var(--bg));
+  pointer-events:none;
+}
+.rings-svg{
+  width:min(430px, 78vw);
+  height:auto;
+  position:relative;z-index:2;
+}
+.hero-title{
+  margin-top:34px;
+  font-size:clamp(2.4rem, 7.5vw, 4.6rem);
+  font-weight:900;
+  letter-spacing:-.04em;
+  color:#fff;
+  opacity:0;
+  position:relative;z-index:2;
+}
+.hero-title span{color:var(--blue);}
+.hero-sub{
+  margin-top:12px;
+  font-size:clamp(.95rem, 2.3vw, 1.25rem);
+  font-weight:500;
+  color:rgba(255,255,255,.62);
+  letter-spacing:.01em;
+  opacity:0;
+  position:relative;z-index:2;
+}
+.hero-hint{
+  margin-top:56px;
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+  font-size:11.5px;font-weight:700;letter-spacing:.22em;
+  text-transform:uppercase;
+  color:rgba(255,255,255,.45);
+  opacity:0;
+  position:relative;z-index:2;
+}
+.hero-hint .line{
+  width:1px;height:38px;
+  background:linear-gradient(rgba(255,255,255,.55), transparent);
+  animation:drop 2s ease-in-out infinite;
+}
+@keyframes drop{
+  0%,100%{opacity:.2;transform:translateY(0) scaleY(.8);}
+  50%    {opacity:1; transform:translateY(7px) scaleY(1);}
+}
+
+/* ============================================================
+   5. SECTION SHELL
+   ============================================================ */
+.section{
+  padding:88px 0;
+  scroll-margin-top:var(--nav-h);
+}
+.section.tint{
+  background:#fff;
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+}
+.wrap{max-width:1200px;margin:0 auto;padding:0 22px;}
+
+.eyebrow{
+  display:inline-flex;align-items:center;gap:9px;
+  font-size:11px;font-weight:800;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--blue);
+  margin-bottom:14px;
+}
+.eyebrow::before{
+  content:"";width:22px;height:2px;background:var(--blue);border-radius:2px;
+}
+.section h2{
+  font-size:clamp(1.55rem, 3.6vw, 2.4rem);
+}
+.lead{
+  margin-top:14px;
+  max-width:680px;
+  color:var(--muted);
+  font-size:clamp(.9rem, 1.85vw, 1.02rem);
+}
+
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:22px;
+  box-shadow:var(--shadow);
+  margin-top:30px;
+}
+.card-head{
+  display:flex;flex-wrap:wrap;gap:14px;
+  align-items:center;justify-content:space-between;
+  margin-bottom:4px;
+}
+.card-head h3{font-size:1rem;letter-spacing:-.015em;}
+.card-head .sub{
+  font-size:12.5px;color:var(--muted);font-weight:500;margin-top:3px;
+}
+
+.controls{display:flex;flex-wrap:wrap;gap:9px;align-items:center;}
+.controls label{
+  display:flex;align-items:center;gap:7px;
+  font-size:11px;font-weight:800;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--muted);
+}
+.controls select,.controls input[type=text]{
+  padding:6px 11px;border-radius:8px;
+  border:1px solid var(--line);background:#fff;
+  font-size:12.5px;font-weight:600;outline:none;
+  transition:border-color .2s, box-shadow .2s;
+}
+.controls select:focus,.controls input:focus{
+  border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,129,200,.12);
+}
+
+.seg{
+  display:inline-flex;background:#eef3f9;border-radius:9px;padding:3px;gap:2px;
+}
+.seg button{
+  border:0;background:none;padding:6px 12px;border-radius:7px;
+  font-size:11.5px;font-weight:800;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--muted);
+  cursor:pointer;transition:all .18s;
+}
+.seg button:hover{color:var(--navy);}
+.seg button.on{background:#fff;color:var(--navy);box-shadow:0 1px 4px rgba(10,22,40,.13);}
+
+.chart{margin-top:16px;width:100%;overflow:hidden;}
+.chart svg{width:100%;height:auto;display:block;}
+.chart.scrollable{overflow-x:auto;overflow-y:hidden;}
+
+.note{
+  margin-top:14px;padding-left:12px;
+  border-left:2px solid var(--line);
+  font-size:12.5px;color:var(--muted-2);line-height:1.6;
+}
+.note strong{color:var(--muted);}
+
+/* ============================================================
+   6. KPI CARDS
+   ============================================================ */
+.kpi-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(170px, 1fr));
+  gap:18px;margin-top:34px;
+}
+.kpi{
+  background:#fff;border:1px solid var(--line);
+  border-radius:var(--radius-sm);
+  padding:24px 20px;
+  box-shadow:var(--shadow);
+  transition:transform .28s cubic-bezier(.2,.8,.3,1), box-shadow .28s;
+  position:relative;overflow:hidden;
+}
+.kpi::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:var(--blue);opacity:.85;
+}
+.kpi:hover{transform:translateY(-5px);box-shadow:var(--shadow-lg);}
+.kpi-value{
+  font-size:clamp(1.7rem, 3.6vw, 2.3rem);
+  font-weight:900;letter-spacing:-.04em;
+  font-variant-numeric:tabular-nums;
+  color:var(--navy);line-height:1;
+}
+.kpi-label{
+  margin-top:9px;font-size:11px;font-weight:800;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--muted);
+}
+.kpi-note{font-size:11.5px;color:var(--muted-2);margin-top:5px;}
+
+/* ============================================================
+   7. LEGENDS
+   ============================================================ */
+.legend{
+  display:flex;flex-wrap:wrap;gap:16px;
+  margin-top:16px;align-items:center;
+}
+.legend .lg{
+  display:flex;align-items:center;gap:7px;
+  font-size:11.5px;font-weight:600;color:var(--muted);
+}
+.legend .lg i{
+  width:11px;height:11px;border-radius:3px;display:block;flex:none;
+}
+.legend .lg i.round{border-radius:50%;}
+
+.ramp{display:flex;align-items:center;gap:10px;font-size:11px;font-weight:700;color:var(--muted);}
+.ramp .bar{height:10px;width:150px;border-radius:5px;}
+
+/* ============================================================
+   8. TOOLTIP
+   ============================================================ */
+#tooltip{
+  position:fixed;top:0;left:0;z-index:1200;
+  pointer-events:none;
+  background:rgba(10,22,40,.97);
+  color:#fff;
+  padding:12px 15px;
+  border-radius:11px;
+  font-size:12.5px;
+  line-height:1.5;
+  box-shadow:0 16px 40px rgba(10,22,40,.32);
+  opacity:0;
+  transition:opacity .14s;
+  max-width:260px;
+}
+#tooltip .tt-title{
+  font-weight:800;font-size:13px;margin-bottom:8px;
+  letter-spacing:.01em;
+}
+#tooltip .tt-row{
+  display:flex;align-items:center;gap:8px;
+  line-height:1.85;
+}
+#tooltip .tt-row b{margin-left:auto;font-variant-numeric:tabular-nums;}
+#tooltip .tt-row .dot{
+  width:8px;height:8px;border-radius:50%;flex:none;
+}
+#tooltip .tt-sep{
+  height:1px;background:rgba(255,255,255,.15);margin:7px 0;
+}
+#tooltip .tt-note{
+  font-size:11px;opacity:.65;margin-top:8px;line-height:1.55;
+}
+
+/* ============================================================
+   9. INSIGHTS
+   ============================================================ */
+.insight-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(250px, 1fr));
+  gap:18px;margin-top:34px;
+}
+.insight{
+  background:#fff;border:1px solid var(--line);
+  border-top:3px solid var(--blue);
+  border-radius:var(--radius-sm);
+  padding:24px 22px;
+  box-shadow:var(--shadow);
+  transition:transform .28s cubic-bezier(.2,.8,.3,1), box-shadow .28s;
+}
+.insight:hover{transform:translateY(-5px);box-shadow:var(--shadow-lg);}
+.insight .i-label{
+  font-size:10.5px;font-weight:800;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted);
+}
+.insight .i-value{
+  margin-top:10px;font-size:1.5rem;font-weight:900;
+  letter-spacing:-.03em;color:var(--navy);
+}
+.insight .i-text{font-size:13px;color:var(--muted);margin-top:8px;}
+
+.closing{
+  margin-top:64px;
+  text-align:center;
+  padding:62px 26px;
+  border-radius:22px;
+  background:linear-gradient(140deg,#0a1628 0%, #17304f 55%, #0a1628 100%);
+  position:relative;overflow:hidden;
+}
+.closing::before{
+  content:"";position:absolute;inset:-40% -10% auto -10%;height:70%;
+  background:radial-gradient(closest-side, rgba(0,129,200,.22), transparent);
+  pointer-events:none;
+}
+.closing .c-line{
+  position:relative;z-index:2;
+  font-size:clamp(1.15rem, 3.2vw, 1.9rem);
+  font-weight:800;letter-spacing:-.03em;
+  color:#fff;line-height:1.3;
+}
+.closing .c-line em{
+  font-style:normal;
+  background:linear-gradient(90deg,var(--blue),var(--yellow),var(--green));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.closing .c-sig{
+  position:relative;z-index:2;
+  margin-top:22px;
+  font-size:10.5px;font-weight:800;letter-spacing:.28em;
+  text-transform:uppercase;color:rgba(255,255,255,.42);
+}
+
+/* ============================================================
+   10. FOOTER
+   ============================================================ */
+.footer{
+  padding:46px 22px 56px;
+  text-align:center;
+  background:#fff;
+  border-top:1px solid var(--line);
+  font-size:12px;color:var(--muted-2);line-height:1.8;
+}
+.footer strong{color:var(--navy);}
+.footer .f-tag{
+  margin-top:12px;font-size:10.5px;font-weight:800;
+  letter-spacing:.2em;text-transform:uppercase;color:var(--blue);
+}
+
+/* ============================================================
+   11. REVEAL
+   ============================================================ */
+.reveal{
+  opacity:0;transform:translateY(26px);
+  transition:opacity .75s cubic-bezier(.2,.8,.3,1),
+             transform .75s cubic-bezier(.2,.8,.3,1);
+}
+.reveal.in{opacity:1;transform:none;}
+
+/* ============================================================
+   12. RESPONSIVE
+   ============================================================ */
+@media (max-width:900px){
+  .nav-links a{padding:6px 9px;font-size:11.5px;}
+}
+@media (max-width:680px){
+  :root{--nav-h:54px;}
+  .section{padding:62px 0;}
+  .wrap{padding:0 16px;}
+  .card{padding:16px;border-radius:14px;}
+  .kpi-grid{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;}
+  .kpi{padding:18px 16px;}
+  .brand span.full{display:none;}
+  .hero-hint{margin-top:40px;}
+  .closing{padding:44px 18px;border-radius:18px;}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important;}
+  html{scroll-behavior:auto;}
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     NAVIGATION
+     ============================================================ -->
+<nav class="nav" id="nav" aria-label="Section navigation">
+  <a class="brand" href="#top">
+    <span class="dot-ring" aria-hidden="true"></span>
+    <span class="full">TOKYO</span>&nbsp;<em>2020</em>
+  </a>
+
+  <div class="nav-links">
+    <a href="#snapshot">Snapshot</a>
+    <a href="#ranking">Ranking</a>
+    <a href="#composition">Composition</a>
+    <a href="#compare">Compare</a>
+    <a href="#sports">Sports</a>
+    <a href="#scatter">Participation</a>
+    <a href="#heatmap">Intensity</a>
+    <a href="#treemap">Landscape</a>
+    <a href="#insights">Insights</a>
+  </div>
+
+  <button class="btn ghost" id="resetBtn">Reset</button>
+</nav>
+
+<!-- ============================================================
+     HERO — D3-POWERED SVG OLYMPIC RING ANIMATION
+     ============================================================ -->
+<header class="hero" id="top">
+  <svg class="rings-svg" id="ringsSvg"
+       viewBox="0 0 250 145"
+       role="img"
+       aria-label="The five interlocking Olympic rings, drawn with D3.js"></svg>
+
+  <h1 class="hero-title" id="heroTitle">TOKYO <span>2020</span></h1>
+  <p class="hero-sub" id="heroSub">An Interactive Olympic Data Story</p>
+
+  <div class="hero-hint" id="heroHint">
+    <span>Scroll to explore</span>
+    <span class="line" aria-hidden="true"></span>
+  </div>
+</header>
+
+<main>
+
+<!-- ============================================================
+     01 — THE GAMES IN NUMBERS
+     ============================================================ -->
+<section class="section" id="snapshot">
+  <div class="wrap">
+    <p class="eyebrow reveal">01 — Snapshot</p>
+    <h2 class="reveal">The Games in Numbers</h2>
+    <p class="lead reveal">
+      Every figure below is calculated live from the local Tokyo 2020 dataset
+      loaded with <code>d3.csv()</code>. Nothing is hard-coded.
+    </p>
+
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <p class="note reveal" id="snapshotNote"></p>
+  </div>
+</section>
+
+<!-- ============================================================
+     02 — MEDAL RANKING
+     ============================================================ -->
+<section class="section tint" id="ranking">
+  <div class="wrap">
+    <p class="eyebrow reveal">02 — Medal Ranking</p>
+    <h2 class="reveal">Who Dominated the Medal Table?</h2>
+    <p class="lead reveal">
+      A single bar chart that re-sorts and re-scales itself whenever you change
+      the metric. Watch the transitions — that is D3's data join doing the work.
+    </p>
+
+    <div class="card reveal">
+      <div class="card-head">
+        <div>
+          <h3>Medals by Country</h3>
+          <div class="sub">Click a bar to highlight that country across the story</div>
+        </div>
+        <div class="controls">
+          <div class="seg" id="metricSeg" role="group" aria-label="Medal metric">
+            <button data-metric="total" class="on">Total</button>
+            <button data-metric="gold">Gold</button>
+            <button data-metric="silver">Silver</button>
+            <button data-metric="bronze">Bronze</button>
+          </div>
+          <div class="seg" id="topSeg" role="group" aria-label="Number of countries">
+            <button data-top="10" class="on">Top 10</button>
+            <button data-top="15">Top 15</button>
+          </div>
+          <button class="btn" id="barSort">Sort ↓</button>
+        </div>
+      </div>
+
+      <div class="chart" id="medalBarChart"></div>
+
+      <div class="legend">
+        <span class="lg"><i style="background:#D4AF37"></i>Gold</span>
+        <span class="lg"><i style="background:#A8B0BA"></i>Silver</span>
+        <span class="lg"><i style="background:#C57B45"></i>Bronze</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     03 — MEDAL COMPOSITION
+     ============================================================ -->
+<section class="section" id="composition">
+  <div class="wrap">
+    <p class="eyebrow reveal">03 — Composition</p>
+    <h2 class="reveal">The Medal Breakdown</h2>
+    <p class="lead reveal">
+      Built with <code>d3.pie()</code> and <code>d3.arc()</code>. Hover a segment
+      to expand it — the centre readout updates in real time.
+    </p>
+
+    <div class="card reveal" style="max-width:640px;margin-left:auto;margin-right:auto;">
+      <div class="card-head">
+        <div>
+          <h3>Gold · Silver · Bronze</h3>
+          <div class="sub">Composition across the nations in this dataset</div>
+        </div>
+      </div>
+      <div class="chart" id="donutChart"></div>
+      <div class="legend" id="donutLegend"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     04 — COUNTRY COMPARISON
+     ============================================================ -->
+<section class="section tint" id="compare">
+  <div class="wrap">
+    <p class="eyebrow reveal">04 — Comparison</p>
+    <h2 class="reveal">Countries, Compared</h2>
+    <p class="lead reveal">
+      Pick any three nations. The grouped bars re-animate on every change —
+      a clear demonstration of D3's enter / update / exit cycle.
+    </p>
+
+    <div class="card reveal">
+      <div class="card-head">
+        <div>
+          <h3>Medal Profile</h3>
+          <div class="sub">Gold · Silver · Bronze side by side</div>
+        </div>
+        <div class="controls" id="compareSelects"></div>
+      </div>
+      <div class="chart" id="compareChart"></div>
+      <div class="legend" id="compareLegend"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     05 — SPORTS
+     ============================================================ -->
+<section class="section" id="sports">
+  <div class="wrap">
+    <p class="eyebrow reveal">05 — Sports</p>
+    <h2 class="reveal">Where Did the Action Happen?</h2>
+    <p class="lead reveal">
+      Athlete participation across the 33 sports of Tokyo 2020, loaded from
+      <code>data/athletes.csv</code>. Click a sport to highlight it.
+    </p>
+
+    <div class="card reveal">
+      <div class="card-head">
+        <div>
+          <h3>Athletes by Sport</h3>
+          <div class="sub">Click a bar to select that sport</div>
+        </div>
+        <div class="controls">
+          <label>Search
+            <input type="text" id="sportSearch" placeholder="filter sports…" />
+          </label>
+          <button class="btn" id="sportSort">Sort ↓</button>
+        </div>
+      </div>
+      <div class="chart" id="sportChart"></div>
+      <p class="note">
+        Participation figures are the entry-list counts recorded in this dataset
+        and may differ slightly from final accredited totals.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     06 — SCATTER
+     ============================================================ -->
+<section class="section tint" id="scatter">
+  <div class="wrap">
+    <p class="eyebrow reveal">06 — Participation × Medals</p>
+    <h2 class="reveal">Does Delegation Size Matter?</h2>
+    <p class="lead reveal">
+      Each circle is a country. X-axis: athletes sent. Y-axis: total medals won.
+      Circle radius also encodes total medals. Scroll to zoom, drag to pan.
+    </p>
+
+    <div class="card reveal">
+      <div class="card-head">
+        <div>
+          <h3>Delegation Size vs Medal Haul</h3>
+          <div class="sub">Colour indicates continent</div>
+        </div>
+        <div class="controls">
+          <button class="btn" id="scatterReset">Reset Zoom</button>
+        </div>
+      </div>
+      <div class="chart" id="scatterChart"></div>
+      <div class="legend" id="scatterLegend"></div>
+      <p class="note">
+        This plot shows an <strong>association</strong>, not causation. Larger
+        delegations can enter more events, which mechanically increases medal
+        opportunity — but many other factors (funding, training, talent depth)
+        also matter. No causal claim is made.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     07 — HEATMAP
+     ============================================================ -->
+<section class="section" id="heatmap">
+  <div class="wrap">
+    <p class="eyebrow reveal">07 — Intensity</p>
+    <h2 class="reveal">Medal Intensity</h2>
+    <p class="lead reveal">
+      Country against medal type. Colour is driven by a D3 sequential colour
+      scale — darker cells mean more medals of that type.
+    </p>
+
+    <div class="card reveal">
+      <div class="card-head">
+        <div>
+          <h3>Country × Medal Type</h3>
+          <div class="sub">Top nations in the dataset</div>
+        </div>
+      </div>
+      <div class="chart" id="heatmapChart"></div>
+      <div class="legend">
+        <div class="ramp">
+          <span>Fewer</span>
+          <span class="bar" id="heatRamp"></span>
+          <span>More</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     08 — TREEMAP
+     ============================================================ -->
+<section class="section tint" id="treemap">
+  <div class="wrap">
+    <p class="eyebrow reveal">08 — Landscape</p>
+    <h2 class="reveal">The Medal Landscape</h2>
+    <p class="lead reveal">
+      A hierarchical view built with <code>d3.hierarchy()</code> and
+      <code>d3.treemap()</code>. Area encodes total medals. Click a rectangle
+      to drill into that country's sport-by-sport breakdown.
+    </p>
+
+    <div class="card reveal">
+      <div class="card-head">
+        <div>
+          <h3>Tokyo 2020 → Country → Sport</h3>
+          <div class="sub" id="treemapCrumb">Showing all nations</div>
+        </div>
+        <div class="controls">
+          <button class="btn" id="treemapBack" style="display:none;">← All nations</button>
+        </div>
+      </div>
+      <div class="chart" id="treemapChart"></div>
+      <div class="legend" id="treemapLegend"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     09 — FINAL INSIGHTS
+     ============================================================ -->
+<section class="section" id="insights">
+  <div class="wrap">
+    <p class="eyebrow reveal">09 — Conclusion</p>
+    <h2 class="reveal">What Does the Data Say?</h2>
+    <p class="lead reveal">
+      These findings are computed automatically from the loaded dataset at
+      runtime. Change the CSV files and these sentences change with them.
+    </p>
+
+    <div class="insight-grid" id="insightGrid"></div>
+
+    <div class="closing reveal">
+      <div class="c-line">Explore. Interact. <em>Discover.</em></div>
+      <div class="c-sig">Tokyo 2020 · Powered by D3.js</div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <p>
+    <strong>TOKYO 2020 — An Interactive Olympic Data Story</strong><br />
+    HTML5 · CSS3 · JavaScript · D3.js v7
+  </p>
+  <p style="margin-top:10px;">
+    Data compiled from publicly available Tokyo 2020 medal and participation
+    records. This is an academic visualization project and is not affiliated
+    with the International Olympic Committee.
+  </p>
+  <p class="f-tag">Powered by D3.js</p>
+</footer>
+
+<!-- Shared tooltip -->
+<div id="tooltip" role="tooltip" aria-hidden="true"></div>
+
+<!-- ============================================================
+     D3.js
+     ============================================================ -->
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+
+<!-- ============================================================
+     APPLICATION
+     ============================================================ -->
+<script>
+/* ==================================================================
+   TOKYO 2020 — AN INTERACTIVE OLYMPIC DATA STORY
+   ------------------------------------------------------------------
+   File map
+     1.  Config & state
+     2.  Utilities (tooltip, formatting, sizing)
+     3.  Data loading  (d3.csv with embedded fallback)
+     4.  Hero — D3 SVG Olympic ring animation
+     5.  Section 01 — KPI counters
+     6.  Section 02 — Medal ranking bar chart
+     7.  Section 03 — Medal donut
+     8.  Section 04 — Country comparison
+     9.  Section 05 — Sports bar chart
+    10.  Section 06 — Scatter plot
+    11.  Section 07 — Heatmap
+    12.  Section 08 — Treemap
+    13.  Section 09 — Insights
+    14.  Navigation, reveal, resize, init
+   ================================================================== */
+
+/* ==================================================================
+   1. CONFIG & STATE
+   ================================================================== */
+const MEDAL_COLORS = {
+  gold:   '#D4AF37',
+  silver: '#A8B0BA',
+  bronze: '#C57B45'
+};
+
+const CONTINENT_COLORS = {
+  Europe:   '#0081C8',
+  Asia:     '#EE334E',
+  Americas: '#FCB131',
+  Oceania:  '#00A651',
+  Africa:   '#8E5BD9'
+};
+
+/* Every chart reads from this object. Changing one value here
+   re-renders only what is needed — this is the "shared state" that
+   connects the visualizations together. */
+const state = {
+  metric: 'total',        // ranking chart metric
+  topN: 10,               // ranking chart depth
+  sortDesc: true,         // ranking sort direction
+  selectedCountry: null,  // highlighted across charts
+  selectedSport: null,    // highlighted in sports chart
+  compare: ['United States', 'China', 'Japan'],
+  sportDir: 'desc',
+  sportFilter: '',
+  treemapZoom: null       // null = all nations, else country name
+};
+
+/* Loaded datasets */
+const DATA = {
+  medalsTotal: [],   // country, continent, gold, silver, bronze, athletes
+  medals: [],        // country, sport, gold, silver, bronze
+  athletes: []       // sport, athletes, events
+};
+
+/* Charts already rendered (lazy loading) */
+const rendered = new Set();
+
+/* ==================================================================
+   2. UTILITIES
+   ================================================================== */
+const fmt = d3.format(',');
+const pct = d3.format('.1%');
+
+const tooltipEl = document.getElementById('tooltip');
+
+function showTooltip(html, event) {
+  tooltipEl.innerHTML = html;
+  tooltipEl.style.opacity = '1';
+  tooltipEl.setAttribute('aria-hidden', 'false');
+  moveTooltip(event);
+}
+
+function moveTooltip(event) {
+  if (!event) return;
+  const w = tooltipEl.offsetWidth;
+  const h = tooltipEl.offsetHeight;
+  let x = event.clientX + 18;
+  let y = event.clientY + 18;
+  if (x + w > window.innerWidth - 12)  x = event.clientX - w - 18;
+  if (y + h > window.innerHeight - 12) y = event.clientY - h - 18;
+  if (x < 8) x = 8;
+  if (y < 8) y = 8;
+  tooltipEl.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+}
+
+function hideTooltip() {
+  tooltipEl.style.opacity = '0';
+  tooltipEl.setAttribute('aria-hidden', 'true');
+}
+
+/* Standard medal breakdown tooltip */
+function medalTooltip(title, d, subtitle) {
+  const total = (d.gold || 0) + (d.silver || 0) + (d.bronze || 0);
+  return (
+    '<div class="tt-title">' + title + '</div>' +
+    (subtitle ? '<div style="font-size:11px;opacity:.65;margin-bottom:8px;">' + subtitle + '</div>' : '') +
+    '<div class="tt-row"><span class="dot" style="background:' + MEDAL_COLORS.gold + '"></span>Gold<b>' + fmt(d.gold || 0) + '</b></div>' +
+    '<div class="tt-row"><span class="dot" style="background:' + MEDAL_COLORS.silver + '"></span>Silver<b>' + fmt(d.silver || 0) + '</b></div>' +
+    '<div class="tt-row"><span class="dot" style="background:' + MEDAL_COLORS.bronze + '"></span>Bronze<b>' + fmt(d.bronze || 0) + '</b></div>' +
+    '<div class="tt-sep"></div>' +
+    '<div class="tt-row">Total<b>' + fmt(total) + '</b></div>'
+  );
+}
+
+/* Safe container width for viewBox-based responsive SVGs */
+function widthOf(el, fallback) {
+  const w = el.clientWidth || el.getBoundingClientRect().width;
+  return Math.max(300, Math.round(w) || fallback || 640);
+}
+
+/* Reusable horizontal-axis styling */
+function styleAxis(axis) {
+  axis.selectAll('text')
+    .attr('font-size', 11)
+    .attr('font-weight', 600)
+    .attr('fill', '#94a3b8');
+  axis.selectAll('line').attr('stroke', '#e3e9f1');
+  axis.select('.domain').attr('stroke', '#e3e9f1');
+}
+
+/* ==================================================================
+   3. DATA LOADING
+   ------------------------------------------------------------------
+   Primary source  : local CSV files in ./data/
+   Fallback source : the embedded copies below, used only if the CSVs
+                     cannot be fetched (e.g. opened via file://).
+   ================================================================== */
+
+/* --- Embedded fallback: medals_total.csv --- */
+
+
+/* --- Embedded fallback: medals.csv (country × sport subset) --- */
+
+
+/* Parse a CSV string into an array of objects */
+function parseCSV(text) {
+  return d3.csvParse(text.trim());
+}
+
+/* Convert raw CSV row types */
+function normaliseMedalsTotal(rows) {
+  return rows.map(r => ({
+    country:   r.country.trim(),
+    continent: r.continent.trim(),
+    gold:      +r.gold,
+    silver:    +r.silver,
+    bronze:    +r.bronze,
+    athletes:  +r.athletes,
+    total:     (+r.gold) + (+r.silver) + (+r.bronze)
+  }));
+}
+
+function normaliseMedals(rows) {
+  return rows.map(r => ({
+    country: r.country.trim(),
+    sport:   r.sport.trim(),
+    gold:    +r.gold,
+    silver:  +r.silver,
+    bronze:  +r.bronze,
+    total:   (+r.gold) + (+r.silver) + (+r.bronze)
+  }));
+}
+
+function normaliseAthletes(rows) {
+  return rows.map(r => ({
+    sport:    r.sport.trim(),
+    athletes: +r.athletes,
+    events:   +r.events
+  }));
+}
+
+/* Load everything. Tries the local CSVs first; falls back to the
+   embedded copies if fetching fails (e.g. file:// protocol). */
+function loadData() {
+  return Promise.all([
+    d3.csv('data/medals_total.csv').catch(() => parseCSV(FALLBACK_MEDALS_TOTAL)),
+    d3.csv('data/medals.csv').catch(() => parseCSV(FALLBACK_MEDALS)),
+    d3.csv('data/athletes.csv').catch(() => parseCSV(FALLBACK_ATHLETES))
+  ]).then(([mt, m, a]) => {
+    DATA.medalsTotal = normaliseMedalsTotal(mt);
+    DATA.medals      = normaliseMedals(m);
+    DATA.athletes    = normaliseAthletes(a);
+  });
+}
+
+/* ==================================================================
+   4. HERO — D3 SVG OLYMPIC RING ANIMATION
+   ------------------------------------------------------------------
+   D3 creates each <circle>, positions it, and drives every transition.
+   The rings enter one by one along a short arc and settle into the
+   official Olympic arrangement, then pulse once as a group.
+   ================================================================== */
+function drawRings() {
+  const svg = d3.select('#ringsSvg');
+  svg.selectAll('*').remove();
+
+  const R = 38;          // ring radius
+  const SW = 9;          // stroke width
+
+  /* Final Olympic arrangement (top 3, bottom 2 offset by half) */
+  const rings = [
+    { cx:  48, cy: 50, color: '#0081C8', from: [ 48,  50] }, // blue  — starts in place
+    { cx: 124, cy: 50, color: '#111827', from: [268, -10] }, // black — from top-right
+    { cx: 200, cy: 50, color: '#EE334E', from: [330,  95] }, // red   — from right
+    { cx:  86, cy: 88, color: '#FCB131', from: [-50, 165] }, // yellow— from bottom-left
+    { cx: 162, cy: 88, color: '#00A651', from: [250, 190] }  // green — from bottom-right
+  ];
+
+  /* Soft glow filter */
+  const defs = svg.append('defs');
+  const glow = defs.append('filter')
+    .attr('id', 'ringGlow')
+    .attr('x', '-60%').attr('y', '-60%')
+    .attr('width', '220%').attr('height', '220%');
+  glow.append('feGaussianBlur')
+    .attr('stdDeviation', 5)
+    .attr('result', 'blur');
+  const merge = glow.append('feMerge');
+  merge.append('feMergeNode').attr('in', 'blur');
+  merge.append('feMergeNode').attr('in', 'SourceGraphic');
+
+  /* Each ring is its own <g> so the transform can be tweened */
+  const groups = svg.selectAll('g.ring')
+    .data(rings)
+    .join('g')
+    .attr('class', 'ring')
+    .attr('transform', d => 'translate(' + d.from[0] + ',' + d.from[1] + ')')
+    .attr('opacity', 0);
+
+  groups.append('circle')
+    .attr('r', R)
+    .attr('fill', 'none')
+    .attr('stroke', d => d.color)
+    .attr('stroke-width', SW)
+    .attr('stroke-linecap', 'round');
+
+  /* Sequential entrance — each ring is "attached" to the previous one */
+  groups.each(function (d, i) {
+    const g = d3.select(this);
+    const delay = 300 + i * 500;
+    const duration = i === 0 ? 700 : 900;
+
+    g.transition()
+      .delay(delay)
+      .duration(duration)
+      .ease(d3.easeCubicOut)
+      .attr('opacity', 1)
+      .attrTween('transform', function () {
+        const x0 = d.from[0], y0 = d.from[1];
+        const x1 = d.cx,     y1 = d.cy;
+        /* Slight arc: interpolate position, nudge y with a sine bump */
+        return function (t) {
+          const x = x0 + (x1 - x0) * t;
+          const y = y0 + (y1 - y0) * t - Math.sin(Math.PI * t) * 22;
+          return 'translate(' + x + ',' + y + ')';
+        };
+      });
+  });
+
+  /* Once all rings have landed: one synchronized pulse + glow */
+  const allDone = 300 + 4 * 500 + 900;
+
+  groups.transition()
+    .delay(allDone)
+    .duration(520)
+    .ease(d3.easeSinInOut)
+    .attr('filter', 'url(#ringGlow)')
+    .transition()
+    .duration(620)
+    .ease(d3.easeSinInOut)
+    .attr('filter', null);
+
+  /* Subtle scale pulse on the circles themselves */
+  groups.select('circle')
+    .transition()
+    .delay(allDone)
+    .duration(520)
+    .ease(d3.easeSinInOut)
+    .attr('stroke-width', SW + 2)
+    .transition()
+    .duration(620)
+    .ease(d3.easeSinInOut)
+    .attr('stroke-width', SW);
+
+  /* Reveal the title block after the rings settle */
+  const textStart = allDone + 400;
+  revealHeroText('#heroTitle', textStart);
+  revealHeroText('#heroSub',   textStart + 450);
+  revealHeroText('#heroHint',  textStart + 950);
+}
+
+function revealHeroText(selector, delay) {
+  d3.select(selector)
+    .transition()
+    .delay(delay)
+    .duration(850)
+    .ease(d3.easeCubicOut)
+    .style('opacity', 1)
+    .style('transform', 'translateY(0px)');
+}
+
+/* ==================================================================
+   5. SECTION 01 — KPI COUNTERS
+   ================================================================== */
+function computeSnapshot() {
+  const countries = DATA.medalsTotal.length;
+  const athletes  = d3.sum(DATA.medalsTotal, d => d.athletes);
+  const sports    = DATA.athletes.length;
+  const events    = d3.sum(DATA.athletes, d => d.events);
+  const medals    = d3.sum(DATA.medalsTotal, d => d.total);
+
+  return [
+    { label: 'Athletes',  value: athletes,  note: 'across the delegations in this dataset' },
+    { label: 'Sports',    value: sports,    note: 'on the Tokyo 2020 programme' },
+    { label: 'Events',    value: events,    note: 'medal events contested' },
+    { label: 'Medals',    value: medals,    note: 'awarded to these nations' },
+    { label: 'NOCs',      value: countries, note: 'nations tracked in the dataset' }
+  ];
+}
+
+function buildKPIs() {
+  const grid = document.getElementById('kpiGrid');
+  const snapshot = computeSnapshot();
+
+  grid.innerHTML = snapshot.map(s => (
+    '<div class="kpi">' +
+      '<div class="kpi-value" data-target="' + s.value + '">0</div>' +
+      '<div class="kpi-label">' + s.label + '</div>' +
+      '<div class="kpi-note">' + s.note + '</div>' +
+    '</div>'
+  )).join('');
+
+  document.getElementById('snapshotNote').innerHTML =
+    'This dataset tracks the <strong>' + snapshot[4].value +
+    ' highest-ranked National Olympic Committees</strong> of Tokyo 2020 and the full ' +
+    snapshot[1].value + '-sport programme. The Games as a whole involved 206 NOCs, ' +
+    '11,420 athletes, 33 sports and 339 medal events — figures that appear here only ' +
+    'where the loaded data supports them.';
+}
+
+/* Count each KPI from 0 to its target using a D3 tween */
+function animateKPIs() {
+  d3.selectAll('.kpi-value').each(function () {
+    const el = this;
+    if (el.dataset.done === '1') return;
+    el.dataset.done = '1';
+
+    const target = +el.dataset.target;
+    d3.select(el)
+      .transition()
+      .duration(1200)
+      .ease(d3.easeCubicOut)
+      .tween('count', function () {
+        const interp = d3.interpolateNumber(0, target);
+        return function (t) { el.textContent = fmt(Math.round(interp(t))); };
+      });
+  });
+}
+
+/* ==================================================================
+   6. SECTION 02 — MEDAL RANKING BAR CHART
+   ------------------------------------------------------------------
+   Demonstrates: scales, axes, data join, transitions, tooltips,
+                 sorting, metric switching, click selection.
+   ================================================================== */
+function createMedalBarChart(animate) {
+  const el = document.getElementById('medalBarChart');
+  const W  = widthOf(el, 820);
+  const metric = state.metric;
+
+  /* Prepare rows */
+  let rows = DATA.medalsTotal.slice();
+  rows.sort((a, b) => state.sortDesc ? b[metric] - a[metric] : a[metric] - b[metric]);
+  rows = rows.slice(0, state.topN);
+
+  const margin = { top: 10, right: 82, bottom: 34, left: 128 };
+  const rowH   = 30;
+  const innerH = rows.length * rowH;
+  const H      = innerH + margin.top + margin.bottom;
+
+  el.innerHTML = '';
+
+  const svg = d3.select(el).append('svg')
+    .attr('viewBox', '0 0 ' + W + ' ' + H)
+    .attr('preserveAspectRatio', 'xMidYMid meet')
+    .attr('role', 'img')
+    .attr('aria-label', 'Horizontal bar chart of medals by country');
+
+  const g = svg.append('g')
+    .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+  const innerW = W - margin.left - margin.right;
+
+  const stacked = metric === 'total';
+  const maxVal  = stacked
+    ? d3.max(rows, d => d.total)
+    : d3.max(rows, d => d[metric]);
+
+  const x = d3.scaleLinear()
+    .domain([0, (maxVal || 1) * 1.02])
+    .nice()
+    .range([0, innerW]);
+
+  const y = d3.scaleBand()
+    .domain(rows.map(d => d.country))
+    .range([0, innerH])
+    .padding(0.26);
+
+  /* X axis */
+  const xAxis = g.append('g')
+    .attr('transform', 'translate(0,' + innerH + ')')
+    .call(d3.axisBottom(x).ticks(6).tickSizeOuter(0));
+  styleAxis(xAxis);
+
+  /* Rows */
+  const rowG = g.selectAll('g.row')
+    .data(rows, d => d.country)
+    .join('g')
+    .attr('class', 'row')
+    .attr('transform', d => 'translate(0,' + y(d.country) + ')')
+    .style('cursor', 'pointer');
+
+  const barH = y.bandwidth();
+
+  /* Full-width invisible hover target */
+  rowG.append('rect')
+    .attr('x', -margin.left)
+    .attr('y', 0)
+    .attr('width', W)
+    .attr('height', barH)
+    .attr('fill', 'transparent');
+
+  /* Bars */
+  if (stacked) {
+    ['gold', 'silver', 'bronze'].forEach(key => {
+      rowG.append('rect')
+        .attr('class', 'bar-' + key)
+        .attr('y', 0)
+        .attr('height', barH)
+        .attr('fill', MEDAL_COLORS[key])
+        .attr('x', d => x(d.gold && key === 'gold' ? 0 : 0))
+        .attr('width', 0);
+
+      rowG.selectAll('.bar-' + key)
+        .attr('x', d => {
+          if (key === 'gold')   return x(0);
+          if (key === 'silver') return x(d.gold);
+          return x(d.gold + d.silver);
+        })
+        .transition()
+        .delay(animate ? 120 : 0)
+        .duration(680)
+        .ease(d3.easeCubicOut)
+        .attr('width', d => Math.max(0, x(d[key])));
+    });
+
+    /* Round the outer ends of the stacked bar */
+    rowG.select('.bar-gold').attr('rx', 3);
+    rowG.select('.bar-bronze').attr('rx', 3);
+  } else {
+    rowG.append('rect')
+      .attr('class', 'bar-single')
+      .attr('y', 0)
+      .attr('height', barH)
+      .attr('rx', 3)
+      .attr('fill', MEDAL_COLORS[metric])
+      .attr('width', 0)
+      .transition()
+      .delay(animate ? 120 : 0)
+      .duration(680)
+      .ease(d3.easeCubicOut)
+      .attr('width', d => Math.max(1, x(d[metric])));
+  }
+
+  /* Country label */
+  rowG.append('text')
+    .attr('x', -14)
+    .attr('y', barH / 2)
+    .attr('dy', '0.35em')
+    .attr('text-anchor', 'end')
+    .attr('font-size', 12.5)
+    .attr('font-weight', d => d.country === state.selectedCountry ? 800 : 600)
+    .attr('fill', d => d.country === state.selectedCountry ? '#0081C8' : '#0f1e33')
+    .text(d => d.country);
+
+  /* Value label at the end of the bar */
+  rowG.append('text')
+    .attr('y', barH / 2)
+    .attr('dy', '0.35em')
+    .attr('font-size', 12)
+    .attr('font-weight', 800)
+    .attr('fill', '#64748b')
+    .attr('x', 0)
+    .attr('opacity', 0)
+    .text(d => fmt(d[metric]))
+    .transition()
+    .delay(animate ? 420 : 0)
+    .duration(520)
+    .attr('x', d => (stacked ? x(d.total) : x(d[metric])) + 10)
+    .attr('opacity', 1);
+
+  /* Selection outline */
+  if (state.selectedCountry) {
+    rowG.filter(d => d.country === state.selectedCountry)
+      .insert('rect', ':first-child')
+      .attr('x', -margin.left + 4)
+      .attr('y', -2)
+      .attr('width', W - 8)
+      .attr('height', barH + 4)
+      .attr('rx', 6)
+      .attr('fill', 'rgba(0,129,200,.07)')
+      .attr('stroke', '#0081C8')
+      .attr('stroke-width', 1.2);
+  }
+
+  /* Interaction */
+  rowG
+    .on('mouseenter', function (event, d) {
+      d3.select(this).selectAll('rect:not(:first-child)').attr('opacity', 0.82);
+      showTooltip(medalTooltip(d.country, d, d.continent), event);
+    })
+    .on('mousemove', moveTooltip)
+    .on('mouseleave', function () {
+      d3.select(this).selectAll('rect').attr('opacity', 1);
+      hideTooltip();
+    })
+    .on('click', function (event, d) {
+      selectCountry(d.country === state.selectedCountry ? null : d.country);
+    });
+}
+
+/* ==================================================================
+   7. SECTION 03 — MEDAL DONUT
+   ------------------------------------------------------------------
+   Demonstrates: d3.pie(), d3.arc(), arc tweening, hover expansion,
+                 dynamic centre text.
+   ================================================================== */
+function createDonut(animate) {
+  const el = document.getElementById('donutChart');
+  const W  = widthOf(el, 520);
+  const H  = 360;
+  const radius = Math.min(W, H) / 2 - 26;
+
+  /* Values come straight from the loaded dataset */
+  const data = [
+    { key: 'gold',   label: 'Gold',   value: d3.sum(DATA.medalsTotal, d => d.gold),   color: MEDAL_COLORS.gold },
+    { key: 'silver', label: 'Silver', value: d3.sum(DATA.medalsTotal, d => d.silver), color: MEDAL_COLORS.silver },
+    { key: 'bronze', label: 'Bronze', value: d3.sum(DATA.medalsTotal, d => d.bronze), color: MEDAL_COLORS.bronze }
+  ];
+  const total = d3.sum(data, d => d.value);
+
+  el.innerHTML = '';
+
+  const svg = d3.select(el).append('svg')
+    .attr('viewBox', '0 0 ' + W + ' ' + H)
+    .attr('preserveAspectRatio', 'xMidYMid meet')
+    .attr('role', 'img')
+    .attr('aria-label', 'Donut chart of gold, silver and bronze medals');
+
+  const g = svg.append('g')
+    .attr('transform', 'translate(' + W / 2 + ',' + H / 2 + ')');
+
+  const pie = d3.pie()
+    .value(d => d.value)
+    .sort(null)
+    .padAngle(0.02);
+
+  const arc = d3.arc()
+    .innerRadius(radius * 0.58)
+    .outerRadius(radius);
+
+  const arcHover = d3.arc()
+    .innerRadius(radius * 0.55)
+    .outerRadius(radius + 10);
+
+  const arcs = pie(data);
+
+  const paths = g.selectAll('path')
+    .data(arcs)
+    .join('path')
+    .attr('fill', d => d.data.color)
+    .attr('stroke', '#fff')
+    .attr('stroke-width', 2)
+    .style('cursor', 'pointer');
+
+  if (animate) {
+    const flat = d3.arc().innerRadius(radius * 0.58).outerRadius(radius * 0.58);
+    paths.attr('d', flat)
+      .transition()
+      .delay((d, i) => 120 + i * 140)
+      .duration(800)
+      .ease(d3.easeCubicOut)
+      .attrTween('d', function (d) {
+        const interp = d3.interpolate(
+          { startAngle: d.startAngle, endAngle: d.startAngle },
+          d
+        );
+        return t => arc(interp(t));
+      });
+  } else {
+    paths.attr('d', arc);
+  }
+
+  /* Centre readout */
+  const centreValue = g.append('text')
+    .attr('text-anchor', 'middle')
+    .attr('dy', '-0.05em')
+    .attr('font-size', 30)
+    .attr('font-weight', 900)
+    .attr('letter-spacing', '-0.04em')
+    .attr('fill', '#0a1628')
+    .text(fmt(total));
+
+  const centreLabel = g.append('text')
+    .attr('text-anchor', 'middle')
+    .attr('dy', '1.6em')
+    .attr('font-size', 10.5)
+    .attr('font-weight', 800)
+    .attr('letter-spacing', '0.14em')
+    .attr('fill', '#94a3b8')
+    .text('TOTAL MEDALS');
+
+  function setCentre(value, label, colour) {
+    centreValue
+      .transition()
+      .duration(240)
+      .attr('fill', colour || '#0a1628')
+      .tween('num', function () {
+        const current = +String(centreValue.text()).replace(/,/g, '') || 0;
+        const interp = d3.interpolateNumber(current, value);
+        return t => { this.textContent = fmt(Math.round(interp(t))); };
+      });
+    centreLabel.transition().duration(240).text(label);
+  }
+
+  paths
+    .on('mouseenter', function (event, d) {
+      paths.attr('opacity', p => p === d ? 1 : 0.4);
+      d3.select(this).transition().duration(200).attr('d', arcHover);
+      setCentre(
+        d.data.value,
+        d.data.label.toUpperCase() + ' · ' + pct(d.data.value / total),
+        d.data.color
+      );
+      showTooltip(
+        '<div class="tt-title">' + d.data.label + ' Medals</div>' +
+        '<div class="tt-row">Count<b>' + fmt(d.data.value) + '</b></div>' +
+        '<div class="tt-row">Share<b>' + pct(d.data.value / total) + '</b></div>' +
+        '<div class="tt-note">' + fmt(total) + ' medals in total across this dataset.</div>',
+        event
+      );
+    })
+    .on('mousemove', moveTooltip)
+    .on('mouseleave', function (event, d) {
+      paths.attr('opacity', 1);
+      d3.select(this).transition().duration(200).attr('d', arc);
+      setCentre(total, 'TOTAL MEDALS', '#0a1628');
+      hideTooltip();
+    })
+    .on('click', function (event, d) {
+      paths.attr('opacity', p => p === d ? 1 : 0.32);
+      setCentre(d.data.value, d.data.label.toUpperCase(), d.data.color);
+    });
+
+  /* Legend */
+  document.getElementById('donutLegend').innerHTML = data.map(d => (
+    '<span class="lg"><i style="background:' + d.color + '"></i>' +
+      d.label + ' — ' + fmt(d.value) + ' (' + pct(d.value / total) + ')' +
+    '</span>'
+  )).join('');
+}
+
+/* ==================================================================
+   8. SECTION 04 — COUNTRY COMPARISON (GROUPED BARS)
+   ------------------------------------------------------------------
+   Demonstrates: dynamic update, enter/update/exit, grouped scales.
+   ================================================================== */
+function buildCompareSelects() {
+  const wrap = document.getElementById('compareSelects');
+  const options = DATA.medalsTotal.map(d => d.country);
+
+  wrap.innerHTML = [0, 1, 2].map(i => (
+    '<label>Country ' + (i + 1) +
+      '<select class="cmpSelect" data-idx="' + i + '">' +
+        options.map(c =>
+          '<option value="' + c + '"' +
+            (state.compare[i] === c ? ' selected' : '') + '>' + c +
+          '</option>'
+        ).join('') +
+      '</select>' +
+    '</label>'
+  )).join('');
+
+  wrap.querySelectorAll('.cmpSelect').forEach(sel => {
+    sel.addEventListener('change', function () {
+      state.compare[+this.dataset.idx] = this.value;
+      createComparison(false);
+    });
+  });
+}
+
+function createComparison(animate) {
+  const el = document.getElementById('compareChart');
+  const W  = widthOf(el, 760);
+  const H  = 340;
+  const margin = { top: 24, right: 22, bottom: 46, left: 56 };
+
+  const selected = state.compare
+    .map(name => DATA.medalsTotal.find(d => d.country === name))
+    .filter(Boolean);
+
+  el.innerHTML = '';
+
+  if (!selected.length) {
+    el.innerHTML = '<div style="padding:30px;text-align:center;color:#94a3b8;font-size:13px;">' +
+      'Select at least one country.</div>';
+    return;
+  }
+
+  const svg = d3.select(el).append('svg')
+    .attr('viewBox', '0 0 ' + W + ' ' + H)
+    .attr('preserveAspectRatio', 'xMidYMid meet')
+    .attr('role', 'img')
+    .attr('aria-label', 'Grouped bar chart comparing three countries by medal type');
+
+  const innerW = W - margin.left - margin.right;
+  const innerH = H - margin.top - margin.bottom;
+
+  const g = svg.append('g')
+    .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+  const types = ['gold', 'silver', 'bronze'];
+
+  const x0 = d3.scaleBand()
+    .domain(types)
+    .range([0, innerW])
+    .padding(0.3);
+
+  const x1 = d3.scaleBand()
+    .domain(selected.map(d => d.country))
+    .range([0, x0.bandwidth()])
+    .padding(0.16);
+
+  const y = d3.scaleLinear()
+    .domain([0, d3.max(selected, d => Math.max(d.gold, d.silver, d.bronze)) * 1.18])
+    .nice()
+    .range([innerH, 0]);
+
+  /* Gridlines */
+  g.append('g')
+    .selectAll('line')
+    .data(y.ticks(5))
+    .join('line')
+    .attr('x1', 0).attr('x2', innerW)
+    .attr('y1', d => y(d)).attr('y2', d => y(d))
+    .attr('stroke', '#eef2f7');
+
+  /* Axes */
+  const xAxis = g.append('g')
+    .attr('transform', 'translate(0,' + innerH + ')')
+    .call(d3.axisBottom(x0)
+      .tickFormat(k => k.charAt(0).toUpperCase() + k.slice(1))
+      .tickSizeOuter(0));
+  styleAxis(xAxis);
+  xAxis.selectAll('text')
+    .attr('font-size', 12)
+    .attr('font-weight', 800)
+    .attr('fill', '#64748b');
+
+  const yAxis = g.append('g').call(d3.axisLeft(y).ticks(5).tickSizeOuter(0));
+  styleAxis(yAxis);
+
+  /* One <g> per medal type */
+  const typeG = g.selectAll('g.type')
+    .data(types)
+    .join('g')
+    .attr('class', 'type')
+    .attr('transform', d => 'translate(' + x0(d) + ',0)');
+
+  /* Bars — enter / update / exit */
+  typeG.selectAll('rect')
+    .data(type => selected.map(c => ({
+      country: c.country,
+      type:    type,
+      value:   c[type],
+      colour:  MEDAL_COLORS[type]
+    })))
+    .join(
+      enter => enter.append('rect')
+        .attr('x', d => x1(d.country))
+        .attr('width', x1.bandwidth())
+        .attr('rx', 3)
+        .attr('fill', d => d.colour)
+        .attr('y', innerH)
+        .attr('height', 0),
+      update => update,
+      exit => exit.remove()
+    )
+    .transition()
+    .duration(animate ? 700 : 420)
+    .ease(d3.easeCubicOut)
+    .attr('x', d => x1(d.country))
+    .attr('width', x1.bandwidth())
+    .attr('y', d => y(d.value))
+    .attr('height', d => Math.max(1, innerH - y(d.value)));
+
+  /* Value labels */
+  typeG.selectAll('text.val')
+    .data(type => selected.map(c => ({ country: c.country, value: c[type] })))
+    .join('text')
+    .attr('class', 'val')
+    .attr('x', d => x1(d.country) + x1.bandwidth() / 2)
+    .attr('text-anchor', 'middle')
+    .attr('font-size', 11)
+    .attr('font-weight', 800)
+    .attr('fill', '#64748b')
+    .attr('opacity', 0)
+    .text(d => d.value)
+    .transition()
+    .delay(animate ? 420 : 0)
+    .duration(420)
+    .attr('y', d => y(d.value) - 6)
+    .attr('opacity', 1);
+
+  /* Hover targets */
+  typeG.selectAll('rect')
+    .style('cursor', 'pointer')
+    .on('mouseenter', function (event, d) {
+      d3.select(this).attr('opacity', 0.78);
+      showTooltip(
+        '<div class="tt-title">' + d.country + '</div>' +
+        '<div class="tt-row"><span class="dot" style="background:' + d.colour + '"></span>' +
+          d.type.charAt(0).toUpperCase() + d.type.slice(1) +
+          '<b>' + d.value + '</b></div>',
+        event
+      );
+    })
+    .on('mousemove', moveTooltip)
+    .on('mouseleave', function () {
+      d3.select(this).attr('opacity', 1);
+      hideTooltip();
+    })
+    .on('click', function (event, d) {
+      selectCountry(d.country === state.selectedCountry ? null : d.country);
+    });
+
+  /* Legend */
+  document.getElementById('compareLegend').innerHTML = selected.map(c => {
+    const colour = CONTINENT_COLORS[c.continent] || '#0081C8';
+    return '<span class="lg"><i class="round" style="background:' + colour + '"></i>' +
+      c.country + ' — ' + fmt(c.total) + ' total</span>';
+  }).join('');
+}
+
+/* ==================================================================
+   9. SECTION 05 — SPORTS BAR CHART
+   ------------------------------------------------------------------
+   Demonstrates: sorting, filtering, transitions, selection.
+   ================================================================== */
+function createSportChart(animate) {
+  const el = document.getElementById('sportChart');
+  const W  = widthOf(el, 820);
+
+  let rows = DATA.athletes.slice();
+
+  if (state.sportFilter) {
+    const q = state.sportFilter.toLowerCase();
+    rows = rows.filter(d => d.sport.toLowerCase().includes(q));
+  }
+
+  rows.sort((a, b) => state.sportDir === 'desc'
+    ? b.athletes - a.athletes
+    : a.athletes - b.athletes);
+
+  el.innerHTML = '';
+
+  if (!rows.length) {
+    el.innerHTML = '<div style="padding:30px;text-align:center;color:#94a3b8;font-size:13px;">' +
+      'No sports match that filter.</div>';
+    return;
+  }
+
+  const margin = { top: 10, right: 78, bottom: 34, left: 152 };
+  const rowH   = 26;
+  const innerH = rows.length * rowH;
+  const H      = innerH + margin.top + margin.bottom;
+
+  const svg = d3.select(el).append('svg')
+    .attr('viewBox', '0 0 ' + W + ' ' + H)
+    .attr('preserveAspectRatio', 'xMidYMid meet')
+    .attr('role', 'img')
+    .attr('aria-label', 'Bar chart of athletes per sport at Tokyo 2020');
+
+  const g = svg.append('g')
+    .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+  const innerW = W - margin.left - margin.right;
+
+  const x = d3.scaleLinear()
+    .domain([0, d3.max(DATA.athletes, d => d.athletes) * 1.02])
+    .nice()
+    .range([0, innerW]);
+
+  const y = d3.scaleBand()
+    .domain(rows.map(d => d.sport))
+    .range([0, innerH])
+    .padding(0.24);
+
+  const xAxis = g.append('g')
+    .attr('transform', 'translate(0,' + innerH + ')')
+    .call(d3.axisBottom(x).ticks(6).tickSizeOuter(0));
+  styleAxis(xAxis);
+
+  const barH = y.bandwidth();
+  const maxAthletes = d3.max(DATA.athletes, d => d.athletes);
+
+  const rowG = g.selectAll('g.srow')
+    .data(rows, d => d.sport)
+    .join('g')
+    .attr('class', 'srow')
+    .attr('transform', d => 'translate(0,' + y(d.sport) + ')')
+    .style('cursor', 'pointer');
+
+  rowG.append('rect')
+    .attr('x', -margin.left)
+    .attr('width', W)
+    .attr('height', barH)
+    .attr('fill', 'transparent');
+
+  rowG.append('rect')
+    .attr('class', 'sbar')
+    .attr('height', barH)
+    .attr('rx', 3)
+    .attr('fill', d => {
+      if (d.sport === state.selectedSport) return '#FCB131';
+      const t = d.athletes / maxAthletes;
+      return d3.interpolateBlues(0.3 + 0.55 * t);
+    })
+    .attr('width', 0)
+    .transition()
+    .delay(animate ? 100 : 0)
+    .duration(660)
+    .ease(d3.easeCubicOut)
+    .attr('width', d => Math.max(1, x(d.athletes)));
+
+  rowG.append('text')
+    .attr('x', -14)
+    .attr('y', barH / 2)
+    .attr('dy', '0.35em')
+    .attr('text-anchor', 'end')
+    .attr('font-size', 12)
+    .attr('font-weight', d => d.sport === state.selectedSport ? 800 : 600)
+    .attr('fill', d => d.sport === state.selectedSport ? '#0081C8' : '#0f1e33')
+    .text(d => d.sport);
+
+  rowG.append('text')
+    .attr('y', barH / 2)
+    .attr('dy', '0.35em')
+    .attr('font-size', 11.5)
+    .attr('font-weight', 800)
+    .attr('fill', '#64748b')
+    .attr('x', 0)
+    .attr('opacity', 0)
+    .text(d => fmt(d.athletes))
+    .transition()
+    .delay(animate ? 380 : 0)
+    .duration(480)
+    .attr('x', d => x(d.athletes) + 10)
+    .attr('opacity', 1);
+
+  rowG
+    .on('mouseenter', function (event, d) {
+      d3.select(this).select('.sbar').attr('opacity', 0.78);
+      showTooltip(
+        '<div class="tt-title">' + d.sport + '</div>' +
+        '<div class="tt-row">Athletes<b>' + fmt(d.athletes) + '</b></div>' +
+        '<div class="tt-row">Events<b>' + fmt(d.events) + '</b></div>' +
+        '<div class="tt-note">Click to highlight this sport.</div>',
+        event
+      );
+    })
+    .on('mousemove', moveTooltip)
+    .on('mouseleave', function () {
+      d3.select(this).select('.sbar').attr('opacity', 1);
+      hideTooltip();
+    })
+    .on('click', function (event, d) {
+      selectSport(d.sport === state.selectedSport ? null : d.sport);
+    });
+}
+
+/* ==================================================================
+   10. SECTION 06 — SCATTER PLOT
+   ------------------------------------------------------------------
+   Demonstrates: linear scales, sqrt radius scale, zoom, pan,
+                 entrance animation.
+   ================================================================== */
+function createScatter(animate) {
+  const el = document.getElementById('scatterChart');
+  const W  = widthOf(el, 820);
+  const H  = 430;
+  const margin = { top: 24, right: 30, bottom: 60, left: 66 };
+
+  el.innerHTML = '';
+
+  const svg = d3.select(el).append('svg')
+    .attr('viewBox', '0 0 ' + W + ' ' + H)
+    .attr('preserveAspectRatio', 'xMidYMid meet')
+    .attr('role', 'img')
+    .attr('aria-label', 'Scatter plot of delegation size against total medals');
+
+  const innerW = W - margin.left - margin.right;
+  const innerH = H - margin.top - margin.bottom;
+
+  const g = svg.append('g')
+    .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+  const x = d3.scaleLinear()
+    .domain([0, d3.max(DATA.medalsTotal, d => d.athletes) * 1.06])
+    .nice()
+    .range([0, innerW]);
+
+  const y = d3.scaleLinear()
+    .domain([0, d3.max(DATA.medalsTotal, d => d.total) * 1.1])
+    .nice()
+    .range([innerH, 0]);
+
+  const r = d3.scaleSqrt()
+    .domain([0, d3.max(DATA.medalsTotal, d => d.total)])
+    .range([3.5, 20]);
+
+  /* Gridlines */
+  const grid = g.append('g');
+  grid.selectAll('line.h')
+    .data(y.ticks(5)).join('line')
+    .attr('x1', 0).attr('x2', innerW)
+    .attr('y1', d => y(d)).attr('y2', d => y(d))
+    .attr('stroke', '#eef2f7');
+  grid.selectAll('line.v')
+    .data(x.ticks(6)).join('line')
+    .attr('y1', 0).attr('y2', innerH)
+    .attr('x1', d => x(d)).attr('x2', d => x(d))
+    .attr('stroke', '#eef2f7');
+
+  /* Axes */
+  const xAxis = g.append('g')
+    .attr('class', 'x-axis')
+    .attr('transform', 'translate(0,' + innerH + ')')
+    .call(d3.axisBottom(x).ticks(6).tickSizeOuter(0));
+  styleAxis(xAxis);
+
+  const yAxis = g.append('g')
+    .attr('class', 'y-axis')
+    .call(d3.axisLeft(y).ticks(5).tickSizeOuter(0));
+  styleAxis(yAxis);
+
+  /* Axis titles */
+  g.append('text')
+    .attr('x', innerW / 2).attr('y', innerH + 48)
+    .attr('text-anchor', 'middle')
+    .attr('font-size', 11)
+    .attr('font-weight', 800)
+    .attr('letter-spacing', '0.1em')
+    .attr('fill', '#94a3b8')
+    .text('ATHLETES SENT');
+
+  g.append('text')
+    .attr('transform', 'rotate(-90)')
+    .attr('x', -innerH / 2).attr('y', -50)
+    .attr('text-anchor', 'middle')
+    .attr('font-size', 11)
+    .attr('font-weight', 800)
+    .attr('letter-spacing', '0.1em')
+    .attr('fill', '#94a3b8')
+    .text('TOTAL MEDALS');
+
+  /* Clip path so zoomed dots never overflow */
+  const clipId = 'scatterClip';
+  svg.append('defs').append('clipPath').attr('id', clipId)
+    .append('rect').attr('width', innerW).attr('height', innerH);
+
+  const plot = g.append('g').attr('clip-path', 'url(#' + clipId + ')');
+
+  /* Dots */
+  const dots = plot.selectAll('circle')
+    .data(DATA.medalsTotal, d => d.country)
+    .join('circle')
+    .attr('cx', d => x(d.athletes))
+    .attr('cy', d => y(d.total))
+    .attr('r', animate ? 0 : d => r(d.total))
+    .attr('fill', d => CONTINENT_COLORS[d.continent] || '#0081C8')
+    .attr('fill-opacity', 0.72)
+    .attr('stroke', '#fff')
+    .attr('stroke-width', 1.5)
+    .style('cursor', 'pointer');
+
+  if (animate) {
+    dots.transition()
+      .delay((d, i) => 80 + i * 30)
+      .duration(560)
+      .ease(d3.easeBackOut.overshoot(1.4))
+      .attr('r', d => r(d.total));
+  }
+
+  /* Highlight the selected country */
+  if (state.selectedCountry) {
+    dots.filter(d => d.country === state.selectedCountry)
+      .attr('stroke', '#0a1628')
+      .attr('stroke-width', 2.6)
+      .attr('fill-opacity', 1);
+  }
+
+  /* Labels for the top five */
+  plot.selectAll('text.lbl')
+    .data(DATA.medalsTotal.slice().sort((a, b) => b.total - a.total).slice(0, 5))
+    .join('text')
+    .attr('class', 'lbl')
+    .attr('x', d => x(d.athletes))
+    .attr('y', d => y(d.total) - r(d.total) - 7)
+    .attr('text-anchor', 'middle')
+    .attr('font-size', 10)
+    .attr('font-weight', 800)
+    .attr('fill', '#64748b')
+    .attr('pointer-events', 'none')
+    .text(d => d.country);
+
+  /* Interaction */
+  dots
+    .on('mouseenter', function (event, d) {
+      d3.select(this)
+        .attr('fill-opacity', 1)
+        .attr('stroke', '#0a1628')
+        .attr('stroke-width', 2.2);
+      showTooltip(
+        medalTooltip(d.country, d, d.continent) +
+        '<div class="tt-note">Athletes sent: ' + fmt(d.athletes) + '</div>',
+        event
+      );
+    })
+    .on('mousemove', moveTooltip)
+    .on('mouseleave', function () {
+      d3.select(this)
+        .attr('fill-opacity', 0.72)
+        .attr('stroke', '#fff')
+        .attr('stroke-width', 1.5);
+      hideTooltip();
+    })
+    .on('click', function (event, d) {
+      selectCountry(d.country === state.selectedCountry ? null : d.country);
+    });
+
+  /* Zoom + pan */
+  const zoom = d3.zoom()
+    .scaleExtent([1, 8])
+    .translateExtent([[0, 0], [innerW, innerH]])
+    .extent([[0, 0], [innerW, innerH]])
+    .on('zoom', function (event) {
+      const zx = event.transform.rescaleX(x);
+      const zy = event.transform.rescaleY(y);
+
+      xAxis.call(d3.axisBottom(zx).ticks(6).tickSizeOuter(0));
+      styleAxis(xAxis);
+      yAxis.call(d3.axisLeft(zy).ticks(5).tickSizeOuter(0));
+      styleAxis(yAxis);
+
+      dots
+        .attr('cx', d => zx(d.athletes))
+        .attr('cy', d => zy(d.total));
+
+      plot.selectAll('text.lbl')
+        .attr('x', d => zx(d.athletes))
+        .attr('y', d => zy(d.total) - r(d.total) - 7);
+    });
+
+  svg.call(zoom);
+  svg.on('dblclick.zoom', null);
+
+  /* Store reset handle for the Reset Zoom button */
+  svg.node().__resetZoom = function () {
+    svg.transition().duration(420).call(zoom.transform, d3.zoomIdentity);
+  };
+
+  /* Legend */
+  document.getElementById('scatterLegend').innerHTML =
+    Object.keys(CONTINENT_COLORS).map(k =>
+      '<span class="lg"><i class="round" style="background:' + CONTINENT_COLORS[k] + '"></i>' + k + '</span>'
+    ).join('') +
+    '<span class="lg"><i class="round" style="background:#cbd5e1"></i>Radius = total medals</span>';
+}
+
+/* ==================================================================
+   11. SECTION 07 — HEATMAP
+   ------------------------------------------------------------------
+   Demonstrates: sequential colour scale, grid layout, row/column
+                 highlighting, tooltips, legend ramp.
+   ================================================================== */
+function createHeatmap(animate) {
+  const el = document.getElementById('heatmapChart');
+
+  const rows = DATA.medalsTotal
+    .slice()
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 12);
+
+  const cols = [
+    { key: 'gold',   label: 'Gold'   },
+    { key: 'silver', label: 'Silver' },
+    { key: 'bronze', label: 'Bronze' }
+  ];
+
+  const cellW = 112;
+  const cellH = 36;
+  const labelW = 148;
+  const headerH = 46;
+  const pad = 22;
+
+  const W = labelW + cols.length * cellW + pad;
+  const H = headerH + rows.length * cellH + 16;
+
+  el.innerHTML = '';
+
+  const maxVal = d3.max(rows, d => Math.max(d.gold, d.silver, d.bronze)) || 1;
+  const colour = d3.scaleSequential(d3.interpolateYlOrRd).domain([0, maxVal]);
+
+  const svg = d3.select(el).append('svg')
+    .attr('viewBox', '0 0 ' + W + ' ' + H)
+    .attr('width', W)
+    .attr('height', H)
+    .attr('role', 'img')
+    .attr('aria-label', 'Heatmap of medal counts by country and medal type');
+
+  /* Column headers */
+  const headG = svg.append('g')
+    .attr('transform', 'translate(' + labelW + ',' + (headerH - 12) + ')');
+
+  headG.selectAll('text')
+    .data(cols)
+    .join('text')
+    .attr('x', (d, i) => i * cellW + cellW / 2)
+    .attr('y', 0)
+    .attr('text-anchor', 'middle')
+    .attr('font-size', 12)
+    .attr('font-weight', 800)
+    .attr('letter-spacing', '0.06em')
+    .attr('fill', '#64748b')
+    .text(d => d.label.toUpperCase());
+
+  /* Body */
+  const g = svg.append('g')
+    .attr('transform', 'translate(0,' + headerH + ')');
+
+  /* Column highlight layer */
+  const colHi = g.selectAll('rect.colhi')
+    .data(cols)
+    .join('rect')
+    .attr('class', 'colhi')
+    .attr('x', (d, i) => labelW + i * cellW)
+    .attr('y', 0)
+    .attr('width', cellW)
+    .attr('height', rows.length * cellH)
+    .attr('fill', '#0081C8')
+    .attr('opacity', 0)
+    .attr('pointer-events', 'none');
+
+  /* Row highlight layer */
+  const rowHi = g.selectAll('rect.rowhi')
+    .data(rows)
+    .join('rect')
+    .attr('class', 'rowhi')
+    .attr('x', 0)
+    .attr('y', (d, i) => i * cellH)
+    .attr('width', W)
+    .attr('height', cellH)
+    .attr('fill', '#0081C8')
+    .attr('opacity', 0)
+    .attr('pointer-events', 'none');
+
+  /* Row groups */
+  const rowG = g.selectAll('g.hrow')
+    .data(rows)
+    .join('g')
+    .attr('class', 'hrow')
+    .attr('transform', (d, i) => 'translate(0,' + i * cellH + ')');
+
+  rowG.append('text')
+    .attr('x', labelW - 14)
+    .attr('y', cellH / 2)
+    .attr('dy', '0.35em')
+    .attr('text-anchor', 'end')
+    .attr('font-size', 12)
+    .attr('font-weight', d => d.country === state.selectedCountry ? 800 : 600)
+    .attr('fill', d => d.country === state.selectedCountry ? '#0081C8' : '#0f1e33')
+    .text(d => d.country);
+
+  /* Cells */
+  const cells = rowG.selectAll('rect.cell')
+    .data(row => cols.map(c => ({
+      country: row.country,
+      key:     c.key,
+      label:   c.label,
+      value:   row[c.key],
+      total:   row.total
+    })))
+    .join('rect')
+    .attr('class', 'cell')
+    .attr('x', (d, i) => labelW + i * cellW + 3)
+    .attr('y', 3)
+    .attr('width', cellW - 6)
+    .attr('height', cellH - 6)
+    .attr('rx', 5)
+    .attr('fill', d => colour(d.value))
+    .attr('opacity', animate ? 0 : 1)
+    .style('cursor', 'pointer');
+
+  if (animate) {
+    cells.transition().duration(640)
+      .delay((d, i) => i * 8)
+      .attr('opacity', 1);
+  }
+
+  /* Cell values */
+  rowG.selectAll('text.cellval')
+    .data(row => cols.map(c => ({ value: row[c.key], key: c.key })))
+    .join('text')
+    .attr('class', 'cellval')
+    .attr('x', (d, i) => labelW + i * cellW + cellW / 2)
+    .attr('y', cellH / 2)
+    .attr('dy', '0.35em')
+    .attr('text-anchor', 'middle')
+    .attr('font-size', 12.5)
+    .attr('font-weight', 800)
+    .attr('fill', d => d.value > maxVal * 0.55 ? '#ffffff' : '#0f1e33')
+    .attr('pointer-events', 'none')
+    .text(d => d.value);
+
+  /* Interaction */
+  cells
+    .on('mouseenter', function (event, d) {
+      const rowIndex = rows.findIndex(r => r.country === d.country);
+      const colIndex = cols.findIndex(c => c.key === d.key);
+
+      rowHi.filter((r, i) => i === rowIndex).attr('opacity', 0.07);
+      colHi.filter((c, i) => i === colIndex).attr('opacity', 0.07);
+
+      d3.select(this).attr('stroke', '#0a1628').attr('stroke-width', 1.8);
+
+      showTooltip(
+        '<div class="tt-title">' + d.country + '</div>' +
+        '<div class="tt-row"><span class="dot" style="background:' + MEDAL_COLORS[d.key] + '"></span>' +
+          d.label + '<b>' + d.value + '</b></div>' +
+        '<div class="tt-sep"></div>' +
+        '<div class="tt-row">Country total<b>' + d.total + '</b></div>' +
+        '<div class="tt-note">Share of this country\'s medals: ' +
+          pct(d.value / d.total) + '</div>',
+        event
+      );
+    })
+    .on('mousemove', moveTooltip)
+    .on('mouseleave', function () {
+      rowHi.attr('opacity', 0);
+      colHi.attr('opacity', 0);
+      d3.select(this).attr('stroke', 'none');
+      hideTooltip();
+    })
+    .on('click', function (event, d) {
+      selectCountry(d.country === state.selectedCountry ? null : d.country);
+    });
+
+  /* Legend ramp */
+  const stops = d3.range(0, 1.001, 0.1).map(t => colour(t * maxVal)).join(',');
+  document.getElementById('heatRamp').style.background =
+    'linear-gradient(90deg,' + stops + ')';
+}
+
+/* ==================================================================
+   12. SECTION 08 — TREEMAP
+   ------------------------------------------------------------------
+   Demonstrates: d3.hierarchy(), d3.treemap(), drill-down zoom,
+                 transitions, breadcrumb context.
+   ================================================================== */
+function createTreemap(animate) {
+  const el = document.getElementById('treemapChart');
+  const crumb = document.getElementById('treemapCrumb');
+  const backBtn = document.getElementById('treemapBack');
+
+  const W = widthOf(el, 900);
+  const H = 420;
+
+  el.innerHTML = '';
+
+  /* ---------- Build the hierarchy ---------- */
+  let rootData;
+
+  if (!state.treemapZoom) {
+    /* Level 1: Tokyo 2020 → countries */
+    rootData = {
+      name: 'Tokyo 2020',
+      children: DATA.medalsTotal.map(c => ({
+        name: c.country,
+        value: c.total,
+        gold: c.gold,
+        silver: c.silver,
+        bronze: c.bronze,
+        continent: c.continent
+      }))
+    };
+    crumb.textContent = 'Showing all ' + DATA.medalsTotal.length + ' nations';
+    backBtn.style.display = 'none';
+  } else {
+    /* Level 2: one country → its sports */
+    const countryRow = DATA.medalsTotal.find(d => d.country === state.treemapZoom);
+    const sports = DATA.medals
+      .filter(d => d.country === state.treemapZoom)
+      .map(d => ({
+        name: d.sport,
+        value: d.total,
+        gold: d.gold,
+        silver: d.silver,
+        bronze: d.bronze
+      }));
+
+    const children = sports.length
+      ? sports
+      : [
+          { name: 'Gold',   value: countryRow.gold,   gold: countryRow.gold,   silver: 0, bronze: 0 },
+          { name: 'Silver', value: countryRow.silver, gold: 0, silver: countryRow.silver, bronze: 0 },
+          { name: 'Bronze', value: countryRow.bronze, gold: 0, silver: 0, bronze: countryRow.bronze }
+        ];
+
+    rootData = {
+      name: state.treemapZoom,
+      children: children.filter(c => c.value > 0)
+    };
+    crumb.textContent = state.treemapZoom + ' — ' + countryRow.total +
+      ' medals across ' + children.length + ' sports';
+    backBtn.style.display = 'inline-block';
+  }
+
+  const root = d3.hierarchy(rootData)
+    .sum(d => d.value || 0)
+    .sort((a, b) => b.value - a.value);
+
+  d3.treemap()
+    .size([W, H])
+    .paddingOuter(4)
+    .paddingInner(3)
+    .paddingTop(rootData.children && rootData.children.length > 20 ? 17 : 4)
+    .round(true)(root);
+
+  const svg = d3.select(el).append('svg')
+    .attr('viewBox', '0 0 ' + W + ' ' + H)
+    .attr('preserveAspectRatio', 'xMidYMid meet')
+    .attr('role', 'img')
+    .attr('aria-label', 'Treemap of medals by country and sport');
+
+  const level1 = !state.treemapZoom;
+
+  /* Colour: top-level nodes get continent colours, drilled nodes get
+     a warm sequential ramp so the two levels feel distinct. */
+  const sportColour = d3.scaleSequential(d3.interpolateBlues)
+    .domain([0, d3.max(root.leaves(), d => d.value) || 1]);
+
+  function nodeColour(d) {
+    if (level1) {
+      return d3.color(CONTINENT_COLOURS(d.data.continent)).brighter(0.15) + '';
+    }
+    return sportColour(d.value);
+  }
+
+  function CONTINENT_COLOURS(continent) {
+    return CONTINENT_COLORS[continent] || '#0081C8';
+  }
+
+  const leaves = root.leaves();
+
+  const nodes = svg.selectAll('g.node')
+    .data(leaves, d => (d.parent ? d.parent.data.name + '/' : '') + d.data.name)
+    .join('g')
+    .attr('class', 'node')
+    .attr('transform', d => 'translate(' + d.x0 + ',' + d.y0 + ')')
+    .style('cursor', 'pointer');
+
+  nodes.append('rect')
+    .attr('width', d => Math.max(1, d.x1 - d.x0))
+    .attr('height', d => Math.max(1, d.y1 - d.y0))
+    .attr('rx', 5)
+    .attr('fill', d => nodeColour(d))
+    .attr('stroke', '#fff')
+    .attr('stroke-width', 1.5)
+    .attr('opacity', animate ? 0 : 1)
+    .transition()
+    .delay(animate ? 120 : 0)
+    .duration(620)
+    .attr('opacity', 1);
+
+  /* Labels — only where the rectangle is large enough */
+  nodes.append('text')
+    .attr('x', 10)
+    .attr('y', 22)
+    .attr('font-size', 12.5)
+    .attr('font-weight', 800)
+    .attr('fill', '#fff')
+    .attr('pointer-events', 'none')
+    .text(d => {
+      const w = d.x1 - d.x0;
+      return w > 78 ? d.data.name : '';
+    });
+
+  nodes.append('text')
+    .attr('x', 10)
+    .attr('y', 40)
+    .attr('font-size', 11)
+    .attr('font-weight', 700)
+    .attr('fill', 'rgba(255,255,255,.8)')
+    .attr('pointer-events', 'none')
+    .text(d => {
+      const w = d.x1 - d.x0;
+      const h = d.y1 - d.y0;
+      return (w > 78 && h > 46) ? fmt(d.value) + ' medals' : '';
+    });
+
+  /* Selection outline */
+  if (state.selectedCountry) {
+    nodes.filter(d => {
+      if (level1) return d.data.name === state.selectedCountry;
+      return d.parent && d.parent.data.name === state.selectedCountry;
+    })
+    .select('rect')
+    .attr('stroke', '#0a1628')
+    .attr('stroke-width', 3);
+  }
+
+  /* Interaction */
+  nodes
+    .on('mouseenter', function (event, d) {
+      d3.select(this).select('rect').attr('opacity', 0.82);
+
+      if (level1) {
+        showTooltip(
+          medalTooltip(d.data.name, d.data, d.data.continent) +
+          '<div class="tt-note">Click to drill into this country\'s sports.</div>',
+          event
+        );
+      } else {
+        showTooltip(
+          '<div class="tt-title">' + state.treemapZoom + ' · ' + d.data.name + '</div>' +
+          '<div class="tt-row">Total medals<b>' + d.value + '</b></div>' +
+          '<div class="tt-row"><span class="dot" style="background:' + MEDAL_COLORS.gold + '"></span>Gold<b>' + (d.data.gold || 0) + '</b></div>' +
+          '<div class="tt-row"><span class="dot" style="background:' + MEDAL_COLORS.silver + '"></span>Silver<b>' + (d.data.silver || 0) + '</b></div>' +
+          '<div class="tt-row"><span class="dot" style="background:' + MEDAL_COLORS.bronze + '"></span>Bronze<b>' + (d.data.bronze || 0) + '</b></div>',
+          event
+        );
+      }
+    })
+    .on('mousemove', moveTooltip)
+    .on('mouseleave', function () {
+      d3.select(this).select('rect').attr('opacity', 1);
+      hideTooltip();
+    })
+    .on('click', function (event, d) {
+      event.stopPropagation();
+
+      if (level1) {
+        state.treemapZoom = d.data.name;
+        selectCountry(d.data.name);
+        createTreemap(true);
+      } else {
+        selectCountry(state.treemapZoom === state.selectedCountry ? null : state.treemapZoom);
+      }
+    });
+
+  /* Back button */
+  backBtn.onclick = function () {
+    state.treemapZoom = null;
+    createTreemap(true);
+  };
+
+  /* Legend */
+  const legendEl = document.getElementById('treemapLegend');
+  if (level1) {
+    legendEl.innerHTML = Object.keys(CONTINENT_COLORS).map(k =>
+      '<span class="lg"><i style="background:' + CONTINENT_COLORS[k] + '"></i>' + k + '</span>'
+    ).join('') +
+    '<span class="lg"><i style="background:#cbd5e1"></i>Area = total medals</span>';
+  } else {
+    legendEl.innerHTML =
+      '<span class="lg"><i style="background:#cbd5e1"></i>Area = medals won in that sport</span>';
+  }
+}
+
+/* ==================================================================
+   13. SECTION 09 — INSIGHTS (computed at runtime)
+   ================================================================== */
+function buildInsights() {
+  const grid = document.getElementById('insightGrid');
+
+  const byTotal = DATA.medalsTotal.slice().sort((a, b) => b.total - a.total);
+  const byGold  = DATA.medalsTotal.slice().sort((a, b) => b.gold - a.gold);
+  const bySport = DATA.athletes.slice().sort((a, b) => b.athletes - a.athletes);
+  const byEvents = DATA.athletes.slice().sort((a, b) => b.events - a.events);
+
+  const topTotal = byTotal[0];
+  const topGold  = byGold[0];
+  const topSport = bySport[0];
+  const topEvents = byEvents[0];
+
+  const totalMedals   = d3.sum(DATA.medalsTotal, d => d.total);
+  const totalGold     = d3.sum(DATA.medalsTotal, d => d.gold);
+  const totalSilver   = d3.sum(DATA.medalsTotal, d => d.silver);
+  const totalBronze   = d3.sum(DATA.medalsTotal, d => d.bronze);
+  const totalAthletes = d3.sum(DATA.medalsTotal, d => d.athletes);
+
+  const topFiveMedals = d3.sum(byTotal.slice(0, 5), d => d.total);
+  const topFiveShare  = topFiveMedals / totalMedals;
+
+  const cards = [
+    {
+      label: 'Highest Total Medals',
+      value: topTotal.country,
+      text: fmt(topTotal.total) + ' medals — ' + topTotal.gold + ' gold, ' +
+            topTotal.silver + ' silver and ' + topTotal.bronze + ' bronze.'
+    },
+    {
+      label: 'Most Gold Medals',
+      value: topGold.country,
+      text: fmt(topGold.gold) + ' gold medals, the highest gold count in the dataset.'
+    },
+    {
+      label: 'Largest Sport',
+      value: topSport.sport,
+      text: fmt(topSport.athletes) + ' athletes competed across ' +
+            topSport.events + ' medal events.'
+    },
+    {
+      label: 'Biggest Medal Programme',
+      value: topEvents.sport,
+      text: topEvents.events + ' medal events — the largest single-sport programme ' +
+            'of the Games.'
+    },
+    {
+      label: 'Medals in the Dataset',
+      value: fmt(totalMedals),
+      text: fmt(totalGold) + ' gold · ' + fmt(totalSilver) + ' silver · ' +
+            fmt(totalBronze) + ' bronze across ' + DATA.medalsTotal.length + ' nations.'
+    },
+    {
+      label: 'Concentration at the Top',
+      value: pct(topFiveShare),
+      text: 'The top five nations account for ' + fmt(topFiveMedals) +
+            ' of the ' + fmt(totalMedals) + ' medals in this dataset.'
+    },
+    {
+      label: 'Total Athletes Tracked',
+      value: fmt(totalAthletes),
+      text: 'Across the ' + DATA.athletes.length + ' sports recorded in the dataset.'
+    },
+    {
+      label: 'Average Delegation Size',
+      value: fmt(Math.round(totalAthletes / DATA.medalsTotal.length)),
+      text: 'Athletes per nation, averaged over the ' +
+            DATA.medalsTotal.length + ' NOCs in the dataset.'
+    }
+  ];
+
+  grid.innerHTML = cards.map(c => (
+    '<div class="insight reveal">' +
+      '<div class="i-label">' + c.label + '</div>' +
+      '<div class="i-value">' + c.value + '</div>' +
+      '<div class="i-text">' + c.text + '</div>' +
+    '</div>'
+  )).join('');
+}
+
+/* ==================================================================
+   14. SHARED SELECTION, CONTROLS, NAV, INIT
+   ================================================================== */
+
+/* --- Cross-chart selection --- */
+function selectCountry(name) {
+  state.selectedCountry = name;
+
+  /* Re-render only the charts that show country-level highlighting */
+  ['medalBarChart', 'scatterChart', 'heatmapChart', 'compareChart'].forEach(id => {
+    if (rendered.has(id)) chartRenderers[id](false);
+  });
+
+  if (rendered.has('treemapChart') && !state.treemapZoom) {
+    createTreemap(false);
+  }
+}
+
+function selectSport(name) {
+  state.selectedSport = name;
+  if (rendered.has('sportChart')) createSportChart(false);
+}
+
+/* --- Lazy rendering registry --- */
+const chartRenderers = {
+  medalBarChart: createMedalBarChart,
+  donutChart:    createDonut,
+  compareChart:  createComparison,
+  sportChart:    createSportChart,
+  scatterChart:  createScatter,
+  heatmapChart:  createHeatmap,
+  treemapChart:  createTreemap
+};
+
+function setupLazyRendering() {
+  const targets = Object.keys(chartRenderers)
+    .map(id => document.getElementById(id))
+    .filter(Boolean);
+
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      const id = entry.target.id;
+      if (entry.isIntersecting && !rendered.has(id)) {
+        rendered.add(id);
+        chartRenderers[id](true);
+        io.unobserve(entry.target);
+      }
+    });
+  }, { rootMargin: '200px 0px' });
+
+  targets.forEach(t => io.observe(t));
+}
+
+/* --- Controls --- */
+function setupControls() {
+  /* Metric toggle */
+  document.querySelectorAll('#metricSeg button').forEach(btn => {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('#metricSeg button').forEach(b => b.classList.remove('on'));
+      this.classList.add('on');
+      state.metric = this.dataset.metric;
+      createMedalBarChart(true);
+    });
+  });
+
+  /* Top N toggle */
+  document.querySelectorAll('#topSeg button').forEach(btn => {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('#topSeg button').forEach(b => b.classList.remove('on'));
+      this.classList.add('on');
+      state.topN = +this.dataset.top;
+      createMedalBarChart(true);
+    });
+  });
+
+  /* Sort direction */
+  document.getElementById('barSort').addEventListener('click', function () {
+    state.sortDesc = !state.sortDesc;
+    this.textContent = state.sortDesc ? 'Sort ↓' : 'Sort ↑';
+    createMedalBarChart(true);
+  });
+
+  /* Sport filter */
+  document.getElementById('sportSearch').addEventListener('input', function () {
+    state.sportFilter = this.value;
+    createSportChart(false);
+  });
+
+  /* Sport sort */
+  document.getElementById('sportSort').addEventListener('click', function () {
+    state.sportDir = state.sportDir === 'desc' ? 'asc' : 'desc';
+    this.textContent = state.sportDir === 'desc' ? 'Sort ↓' : 'Sort ↑';
+    createSportChart(true);
+  });
+
+  /* Scatter zoom reset */
+  document.getElementById('scatterReset').addEventListener('click', function () {
+    const node = document.querySelector('#scatterChart svg');
+    if (node && node.__resetZoom) node.__resetZoom();
+  });
+
+  /* Global reset */
+  document.getElementById('resetBtn').addEventListener('click', resetAll);
+}
+
+/* --- Full reset --- */
+function resetAll() {
+  state.metric = 'total';
+  state.topN = 10;
+  state.sortDesc = true;
+  state.selectedCountry = null;
+  state.selectedSport = null;
+  state.compare = ['United States', 'China', 'Japan'];
+  state.sportDir = 'desc';
+  state.sportFilter = '';
+  state.treemapZoom = null;
+
+  /* Reset UI */
+  document.querySelectorAll('#metricSeg button').forEach(b =>
+    b.classList.toggle('on', b.dataset.metric === 'total'));
+  document.querySelectorAll('#topSeg button').forEach(b =>
+    b.classList.toggle('on', b.dataset.top === '10'));
+  document.getElementById('barSort').textContent = 'Sort ↓';
+  document.getElementById('sportSort').textContent = 'Sort ↓';
+  document.getElementById('sportSearch').value = '';
+  document.getElementById('treemapBack').style.display = 'none';
+
+  buildCompareSelects();
+
+  Object.keys(chartRenderers).forEach(id => {
+    if (rendered.has(id)) chartRenderers[id](false);
+  });
+}
+
+/* --- Navigation: scroll-spy + sticky background --- */
+function setupNav() {
+  const nav = document.getElementById('nav');
+  const links = Array.from(document.querySelectorAll('.nav-links a'));
+  const sections = links
+    .map(a => document.getElementById(a.getAttribute('href').slice(1)))
+    .filter(Boolean);
+
+  /* Sticky background after the hero */
+  const onScroll = () => {
+    nav.classList.toggle('scrolled', window.scrollY > window.innerHeight * 0.6);
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  /* Scroll-spy */
+  const spy = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        links.forEach(l =>
+          l.classList.toggle('active', l.getAttribute('href') === '#' + entry.target.id));
+      }
+    });
+  }, { rootMargin: '-45% 0px -50% 0px' });
+
+  sections.forEach(s => spy.observe(s));
+
+  /* Smooth scroll with nav offset */
+  links.forEach(l => {
+    l.addEventListener('click', function (e) {
+      e.preventDefault();
+      const target = document.getElementById(this.getAttribute('href').slice(1));
+      if (target) {
+        const top = target.getBoundingClientRect().top + window.scrollY - 58;
+        window.scrollTo({ top, behavior: 'smooth' });
+      }
+    });
+  });
+
+  /* Hero click scrolls into the story */
+  document.getElementById('top').addEventListener('click', function () {
+    const target = document.getElementById('snapshot');
+    const top = target.getBoundingClientRect().top + window.scrollY - 58;
+    window.scrollTo({ top, behavior: 'smooth' });
+  });
+}
+
+/* --- Section reveal on scroll --- */
+function setupReveal() {
+  const els = document.querySelectorAll('.reveal');
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('in');
+        io.unobserve(entry.target);
+      }
+    });
+  }, { rootMargin: '-50px 0px' });
+
+  els.forEach(el => io.observe(el));
+}
+
+/* --- KPI counter trigger --- */
+function setupKPIReveal() {
+  const grid = document.getElementById('kpiGrid');
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        animateKPIs();
+        io.unobserve(entry.target);
+      }
+    });
+  }, { rootMargin: '-70px 0px' });
+  io.observe(grid);
+}
+
+/* --- Responsive redraw --- */
+function setupResize() {
+  let timer = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      Object.keys(chartRenderers).forEach(id => {
+        if (rendered.has(id)) chartRenderers[id](false);
+      });
+    }, 240);
+  });
+}
+
+/* --- Boot --- */
+function init() {
+  drawRings();               // Hero animation starts immediately
+
+  loadData().then(function () {
+    buildKPIs();
+    setupKPIReveal();
+
+    buildCompareSelects();
+    buildInsights();
+
+    setupControls();
+    setupNav();
+    setupReveal();
+    setupLazyRendering();
+    setupResize();
+  }).catch(function (err) {
+    console.error('Data loading failed:', err);
+    document.getElementById('snapshot').insertAdjacentHTML('beforeend',
+      '<p class="note" style="color:#EE334E;">Could not load the dataset. ' +
+      'Serve the folder over HTTP (e.g. VS Code Live Server) so that the ' +
+      'CSV files in <code>data/</code> can be fetched.</p>');
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+</body>
+</html>

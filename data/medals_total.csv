@@ -1,0 +1,26 @@
+country,continent,gold,silver,bronze,athletes
+United States,Americas,39,41,33,613
+China,Asia,38,32,18,431
+Japan,Asia,27,14,17,552
+Great Britain,Europe,22,21,22,376
+ROC,Europe,20,28,23,335
+Australia,Oceania,17,7,22,478
+Netherlands,Europe,10,12,14,278
+France,Europe,10,12,11,398
+Germany,Europe,10,11,16,425
+Italy,Europe,10,10,20,384
+Canada,Americas,7,6,11,381
+Brazil,Americas,7,6,8,302
+New Zealand,Oceania,7,6,7,211
+Cuba,Americas,7,3,5,70
+Hungary,Europe,6,7,7,169
+South Korea,Asia,6,4,10,237
+Poland,Europe,4,5,5,210
+Czech Republic,Europe,4,4,3,115
+Kenya,Africa,4,4,2,85
+Norway,Europe,4,2,2,93
+Jamaica,Americas,4,1,4,50
+Spain,Europe,3,8,6,321
+Sweden,Europe,3,6,0,134
+Switzerland,Europe,3,4,6,107
+Denmark,Europe,3,4,4,100
